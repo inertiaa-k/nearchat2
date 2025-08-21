@@ -19,30 +19,41 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// SQLite 데이터베이스 설정
-const db = new sqlite3.Database('chat.db');
+// SQLite 데이터베이스 설정 (Vercel 환경 대응)
+let db;
+try {
+  db = new sqlite3.Database('chat.db');
+} catch (error) {
+  console.log('SQLite 데이터베이스 초기화 실패, 메모리 기반으로 전환:', error.message);
+  // Vercel 환경에서는 파일 시스템 접근이 제한적일 수 있음
+  db = null;
+}
 
 // 데이터베이스 초기화
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    socket_id TEXT UNIQUE,
-    username TEXT,
-    latitude REAL,
-    longitude REAL,
-    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-  
-  db.run(`CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sender_id TEXT,
-    sender_name TEXT,
-    message TEXT,
-    latitude REAL,
-    longitude REAL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-});
+if (db) {
+  db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      socket_id TEXT UNIQUE,
+      username TEXT,
+      latitude REAL,
+      longitude REAL,
+      last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    
+    db.run(`CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id TEXT,
+      sender_name TEXT,
+      message TEXT,
+      latitude REAL,
+      longitude REAL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+  });
+} else {
+  console.log('데이터베이스 없이 메모리 기반으로 실행됩니다.');
+}
 
 // 연결된 사용자들을 저장하는 객체
 const connectedUsers = new Map();
